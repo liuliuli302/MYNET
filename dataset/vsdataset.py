@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 from pprint import pprint
+from lightning.pytorch.utilities.types import TRAIN_DATALOADERS
 import torch
 from torch.utils.data import Dataset, DataLoader
 import h5py
 import numpy as np
 import json
+from lightning.pytorch import LightningDataModule
 
 
 class VideoData(Dataset):
@@ -37,18 +39,29 @@ class VideoData(Dataset):
                     break
 
         hdf = h5py.File(dataset_file, "r")
-        self.list_frame_features = []
-        self.list_gtscores = []
-        self.list_user_summary = []
+        self.list_data = {}
 
         for video_name in self.split[self.mode + "_keys"]:
             frame_features = torch.Tensor(np.array(hdf[video_name + "/features"]))
             gtscore = torch.Tensor(np.array(hdf[video_name + "/gtscore"]))
             user_summary = torch.Tensor(np.array(hdf[video_name + "/user_summary"]))
+            change_points = torch.Tensor(
+                np.array(hdf.get(video_name + "/change_points"))
+            )
+            n_frames = int(hdf.get(video_name + "/n_frames")[()])
+            positions = torch.Tensor(np.array(hdf.get(video_name + "/picks")))
 
-            self.list_frame_features.append(frame_features)
-            self.list_gtscores.append(gtscore)
-            self.list_user_summary.append(user_summary)
+            data_dict = {
+                "frame_features": frame_features,
+                "gtscore": gtscore,
+                "user_summary": user_summary,
+                "change_points": change_points,
+                "n_frames": n_frames,
+                "positions": positions,
+                "video_name": video_name,
+            }
+
+            self.list_data[video_name] = data_dict
 
         hdf.close()
 
@@ -58,29 +71,51 @@ class VideoData(Dataset):
         return self.len
 
     def __getitem__(self, index):
-        """Function to be called for the index operator of `VideoData` Dataset.
-        """
+        """Function to be called for the index operator of `VideoData` Dataset."""
         video_name = self.split[self.mode + "_keys"][index]
-        frame_features = self.list_frame_features[index]
-        gtscore = self.list_gtscores[index]
-        user_summary = self.list_user_summary[index]
+        return self.list_data[video_name]
 
-        if self.mode == "test":
-            return frame_features, video_name, user_summary
-        else:
-            return frame_features, gtscore
 
+class VideoSumDataModule(LightningDataModule):
+    def __init__(self, root_path, dataset_name, split_index, batch_size):
+        super().__init__()
+        self.save_hyperparameters()
+        self.batch_size = batch_size
+        self.train_set = VideoData("train", root_path, dataset_name, split_index)
+        self.val_set = VideoData("test", root_path, dataset_name, split_index)
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_set,
+            batch_size=self.batch_size,
+            shuffle=True,
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val_set,
+            batch_size=self.batch_size,
+        )
 
 
 if __name__ == "__main__":
     root_path = Path("data_source")
 
     dataset = VideoData(
-        mode="test", root_path=root_path, dataset_name="SumMe", split_index=0
+        mode="train", root_path=root_path, dataset_name="SumMe", split_index=0
     )
 
-    frame_features, gtscore, user_summary = dataset[2]
+    summe_module = VideoSumDataModule(
+        root_path=root_path, dataset_name="SumMe", split_index=0, batch_size=1
+    )
 
-    print(frame_features.shape)
-    print(gtscore)
-    print(dataset.__len__())
+    tvsum_module = VideoSumDataModule(
+        root_path=root_path, dataset_name="TVSum", split_index=0, batch_size=1
+    )
+
+    train_loader = tvsum_module.train_dataloader()
+    val_loader = tvsum_module.val_dataloader()
+
+    for batch in train_loader:
+        pprint(batch)
+        break
