@@ -12,7 +12,7 @@ trainer:
     class_path: lightning.pytorch.callbacks.EarlyStopping
     init_args:
       monitor: 'val/epoch/acc'
-      patience: 5
+      patience: 3
       mode: max
 # params of model
 model:
