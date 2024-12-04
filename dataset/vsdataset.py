@@ -77,24 +77,25 @@ class VideoData(Dataset):
 
 
 class VideoSumDataModule(LightningDataModule):
-    def __init__(self, root_path, dataset_name, split_index, batch_size):
+    def __init__(self, root_path, dataset_name, split_index, batch_size, num_workers):
         super().__init__()
         self.save_hyperparameters()
-        self.batch_size = batch_size
         self.train_set = VideoData("train", root_path, dataset_name, split_index)
         self.val_set = VideoData("test", root_path, dataset_name, split_index)
 
     def train_dataloader(self):
         return DataLoader(
             self.train_set,
-            batch_size=self.batch_size,
+            batch_size=self.hparams.batch_size,
             shuffle=True,
+            num_workers=self.hparams.num_workers,
         )
 
     def val_dataloader(self):
         return DataLoader(
             self.val_set,
-            batch_size=self.batch_size,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
         )
 
 
@@ -106,16 +107,24 @@ if __name__ == "__main__":
     )
 
     summe_module = VideoSumDataModule(
-        root_path=root_path, dataset_name="SumMe", split_index=0, batch_size=1
+        root_path=root_path,
+        dataset_name="SumMe",
+        split_index=0,
+        batch_size=1,
+        num_workers=7,
     )
 
     tvsum_module = VideoSumDataModule(
-        root_path=root_path, dataset_name="TVSum", split_index=0, batch_size=1
+        root_path=root_path,
+        dataset_name="TVSum",
+        split_index=0,
+        batch_size=1,
+        num_workers=7,
     )
 
     train_loader = tvsum_module.train_dataloader()
     val_loader = tvsum_module.val_dataloader()
 
     for batch in train_loader:
-        pprint(batch)
+        pprint(batch.keys())
         break

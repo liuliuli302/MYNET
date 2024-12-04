@@ -298,7 +298,7 @@ class PGL_SUM(nn.Module):
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, frame_features):
+    def forward(self, batch):
         """Produce frames importance scores from the frame features, using the PGL-SUM model.
 
         :param torch.Tensor frame_features: Tensor of shape [T, input_size] containing the frame features produced by
@@ -307,6 +307,8 @@ class PGL_SUM(nn.Module):
             y: Tensor with shape [1, T] containing the frames importance scores in [0, 1].
             attn_weights: Tensor with shape [T, T] containing the attention weights.
         """
+        frame_features = batch["frame_features"]
+        frame_features = frame_features.squeeze(0)
         residual = frame_features
         weighted_value, attn_weights = self.attention(frame_features)
         y = weighted_value + residual
