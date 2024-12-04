@@ -13,13 +13,14 @@ class VideoSumModule(LightningModule):
         self.save_hyperparameters(ignore=["model"])
         self.model = model
         self.loss_fn = torch.nn.MSELoss()
+        self.val_fscore_step = []
+        self.val_fscore_epoch = []
 
     def training_step(self, batch):
         pred, attn = self.model(batch)
         loss = self.loss_fn(pred, batch["gtscore"])
-        self.log(
-            "train_loss", loss, on_step=True, on_epoch=True, logger=True
-        )
+        self.log("train_loss", loss, on_step=True, on_epoch=True, logger=True)
+        self.log("loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -44,8 +45,18 @@ class VideoSumModule(LightningModule):
             positions=positions,
             user_summary=user_summary,
         )
-        self.log("fscore", fscore, on_epoch=True, prog_bar=True, batch_size=1)
-        return None
+        
+        self.val_fscore_step.append(fscore)
+        self.log("val/fscore/step", fscore, batch_size=1)
+
+    def on_validation_epoch_end(self):
+        mean_fscore = np.mean(self.val_fscore_step)
+        self.val_fscore_epoch.append(mean_fscore)
+        
+        self.log("val/fscore/epoch", mean_fscore, prog_bar=True, batch_size=1)
+        self.log("val/fscore/max", max(self.val_fscore_epoch), prog_bar=True, batch_size=1)
+        
+        self.val_fscore_step.clear()
 
     def configure_optimizers(self):
         # Choose an optimizer or implement your own.

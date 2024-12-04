@@ -42,7 +42,7 @@ def train():
     datamodule = VideoSumDataModule(
         root_path=root_path,
         dataset_name="SumMe",
-        split_index=0,
+        split_index=1,
         batch_size=1,
         num_workers=7,
     )
@@ -58,7 +58,7 @@ def train():
     )
 
     module = VideoSumModule(model=model, T_max=10, eta_min=0)
-    trainer = Trainer(max_epochs=200)
+    trainer = Trainer(max_epochs=10)
     trainer.fit(module, datamodule)
 
 
