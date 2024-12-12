@@ -57,7 +57,7 @@ def train():
         fusion="add",
     )
 
-    module = VideoSumModule(model=model, T_max=10, eta_min=0)
+    module = VideoSumModule(model=model, T_max=100, eta_min=0)
     trainer = Trainer(max_epochs=10)
     trainer.fit(module, datamodule)
 
